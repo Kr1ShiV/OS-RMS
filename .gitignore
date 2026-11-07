@@ -1,0 +1,24 @@
+# OS-RMS — GitHub Pages deployment
+# (no build artifacts to ignore since this is a pure static site)
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# JetBrains IDEs
+.idea/
+
+# Node (if someone adds a local server for dev)
+node_modules/
+npm-debug.log*
+
+# Misc
+*.log

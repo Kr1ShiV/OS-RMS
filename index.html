@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OS-RMS — Resource Management System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      --cyan-glow:   0 0 20px rgba(6,182,212,0.4);
+      --violet-glow: 0 0 20px rgba(139,92,246,0.4);
+      --emerald-glow:0 0 20px rgba(16,185,129,0.4);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #020617;
+      font-family: 'Inter', system-ui, sans-serif;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+    /* ── Scrollbars ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* ── Gradient title ── */
+    .gradient-title {
+      background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 50%, #818cf8 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    /* ── Glass card ── */
+    .glass {
+      background: rgba(15,23,42,0.75);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(51,65,85,0.55);
+      border-radius: 12px;
+    }
+
+    /* ── Badge pulse ── */
+    .pulse-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      animation: pulse-anim 2s infinite;
+      display: inline-block; flex-shrink: 0;
+    }
+    @keyframes pulse-anim {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.5; transform:scale(1.4); }
+    }
+
+    /* ── Tabs ── */
+    .tab-btn {
+      position: relative;
+      padding: 10px 22px;
+      font-size: .85rem; font-weight: 600;
+      color: #64748b;
+      border-bottom: 2px solid transparent;
+      transition: color .25s, border-color .25s, text-shadow .25s;
+      display: flex; align-items: center; gap: 7px;
+      white-space: nowrap; cursor: pointer; background: none; border-top: none; border-left: none; border-right: none;
+    }
+    .tab-btn:hover:not(.tab-active) { color: #94a3b8; }
+    .tab-cpu  { color:#22d3ee !important; border-bottom-color:#22d3ee !important; text-shadow:0 0 14px rgba(34,211,238,.6); }
+    .tab-mem  { color:#a78bfa !important; border-bottom-color:#a78bfa !important; text-shadow:0 0 14px rgba(167,139,250,.6); }
+    .tab-page { color:#34d399 !important; border-bottom-color:#34d399 !important; text-shadow:0 0 14px rgba(52,211,153,.6); }
+
+    /* ── Tab panels ── */
+    .tab-panel { display:none; animation: fadeUp .3s ease; }
+    .tab-panel.visible { display:block; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── Algo selector buttons ── */
+    .algo-btn {
+      padding: 7px 14px; font-size:.78rem; font-weight:600;
+      border-radius: 8px; border: 1px solid #334155;
+      color: #64748b; background: #0f172a;
+      cursor: pointer; transition: all .2s;
+    }
+    .algo-btn:hover { border-color:#475569; color:#94a3b8; }
+    .sel-cyan   { background:#083344 !important; border-color:#22d3ee !important; color:#22d3ee !important; box-shadow:0 0 8px rgba(34,211,238,.3); }
+    .sel-violet { background:#1e1b4b !important; border-color:#a78bfa !important; color:#a78bfa !important; box-shadow:0 0 8px rgba(167,139,250,.3); }
+    .sel-emerald{ background:#022c22 !important; border-color:#34d399 !important; color:#34d399 !important; box-shadow:0 0 8px rgba(52,211,153,.3); }
+
+    /* ── Run buttons ── */
+    .btn-run {
+      display:inline-flex; align-items:center; gap:8px;
+      padding:9px 20px; font-size:.82rem; font-weight:700;
+      border-radius:10px; border:none; cursor:pointer; transition:all .2s;
+    }
+    .btn-cyan   { background:linear-gradient(135deg,#0891b2,#3b82f6); color:#fff; }
+    .btn-cyan:hover   { box-shadow:var(--cyan-glow); transform:translateY(-1px); }
+    .btn-violet { background:linear-gradient(135deg,#7c3aed,#6366f1); color:#fff; }
+    .btn-violet:hover { box-shadow:var(--violet-glow); transform:translateY(-1px); }
+    .btn-emerald{ background:linear-gradient(135deg,#059669,#0d9488); color:#fff; }
+    .btn-emerald:hover{ box-shadow:var(--emerald-glow); transform:translateY(-1px); }
+    .btn-ghost {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:8px 16px; font-size:.78rem; font-weight:600;
+      border-radius:9px; border:1px solid #334155;
+      background:#0f172a; color:#64748b; cursor:pointer; transition:all .2s;
+    }
+    .btn-ghost:hover { border-color:#475569; color:#94a3b8; }
+    .btn-run:disabled,.btn-ghost:disabled { opacity:.55; cursor:not-allowed; transform:none !important; }
+
+    /* ── Spin ── */
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .spin { animation:spin .7s linear infinite; }
+
+    /* ── Process table ── */
+    .proc-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+    .proc-table th { background:#0f172a; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:.05em; padding:8px 10px; border-bottom:1px solid #1e293b; text-align:left; }
+    .proc-table td { padding:6px 10px; border-bottom:1px solid #1e293b; vertical-align:middle; }
+    .proc-table tr:last-child td { border-bottom:none; }
+    .proc-table input[type=number] {
+      background:#0f172a; border:1px solid #334155; border-radius:6px;
+      color:#e2e8f0; padding:4px 8px; width:58px; font-size:.78rem; text-align:center;
+      transition:border-color .2s;
+    }
+    .proc-table input[type=number]:focus { outline:none; border-color:#22d3ee; }
+
+    /* ── Result table ── */
+    .res-table { width:100%; border-collapse:collapse; font-size:.78rem; }
+    .res-table th { background:#0f172a; color:#64748b; font-weight:600; letter-spacing:.05em; padding:9px 12px; border-bottom:1px solid #1e293b; text-align:center; }
+    .res-table td { padding:8px 12px; border-bottom:1px solid #1e293b; text-align:center; }
+    .res-table tr:last-child td { border-bottom:none; }
+    .res-table tr:hover td { background:rgba(255,255,255,.02); }
+
+    /* ── Gantt ── */
+    #gantt-container { overflow-x:auto; }
+    .gantt-track {
+      display:flex; align-items:stretch;
+      min-height:48px; border-radius:8px; overflow:hidden;
+      border:1px solid #1e293b; background:#0f172a;
+    }
+    .gantt-block {
+      display:flex; align-items:center; justify-content:center;
+      font-size:.72rem; font-weight:700; color:#fff;
+      position:relative; cursor:pointer; transition:filter .2s;
+      min-width:28px; flex-shrink:0;
+    }
+    .gantt-block:hover { filter:brightness(1.25); }
+    .gantt-block.idle {
+      background: repeating-linear-gradient(45deg,#1e293b,#1e293b 4px,#0f172a 4px,#0f172a 8px);
+      color:#475569;
+    }
+    .gantt-tooltip {
+      display:none; position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
+      background:#1e293b; border:1px solid #334155; border-radius:8px;
+      padding:7px 12px; font-size:.72rem; white-space:nowrap; z-index:50;
+      box-shadow:0 4px 20px rgba(0,0,0,.5); pointer-events:none;
+    }
+    .gantt-tooltip::after {
+      content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+      border:5px solid transparent; border-top-color:#334155;
+    }
+    .gantt-block:hover .gantt-tooltip { display:block; }
+    .gantt-markers { display:flex; justify-content:space-between; font-size:.68rem; color:#475569; margin-top:4px; }
+    .gantt-legend { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    .legend-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+
+    /* ── Metric card ── */
+    .metric-card {
+      glass; border-radius:10px; padding:14px 16px;
+      border-left:3px solid transparent; flex:1; min-width:130px;
+    }
+
+    /* ── Memory map ── */
+    .mem-map-wrap { display:flex; flex-direction:column; gap:6px; }
+    .mem-block-row { display:flex; align-items:center; gap:8px; }
+    .mem-block-bar { flex:1; border-radius:8px; overflow:hidden; display:flex; min-height:44px; border:1px solid #1e293b; }
+    .mem-seg { display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:700; transition:filter .2s; cursor:default; }
+    .mem-seg:hover { filter:brightness(1.2); }
+    .mem-block-label { font-size:.68rem; color:#64748b; white-space:nowrap; width:60px; text-align:right; }
+
+    /* ── Page replacement grid ── */
+    .page-grid-wrap { overflow-x:auto; }
+    .page-grid { border-collapse:collapse; font-size:.72rem; }
+    .page-grid th { background:#0f172a; color:#64748b; font-weight:600; padding:7px 10px; border:1px solid #1e293b; text-align:center; white-space:nowrap; }
+    .page-grid td { border:1px solid #1e293b; padding:6px 10px; text-align:center; min-width:38px; }
+    .page-grid .cell-hit  { background:rgba(16,185,129,.15); color:#34d399; font-weight:700; }
+    .page-grid .cell-fault{ background:rgba(239,68,68,.12);  color:#f87171; font-weight:700; }
+    .page-grid .cell-page { color:#e2e8f0; }
+    .page-grid .cell-evict{ color:#fb923c; font-style:italic; }
+    .page-grid .cell-empty{ color:#334155; }
+    .page-grid .row-label { color:#64748b; font-weight:600; background:#0a1020; }
+    .badge-hit  { background:#065f46; color:#34d399; padding:2px 8px; border-radius:9999px; font-size:.68rem; font-weight:700; }
+    .badge-fault{ background:#7f1d1d; color:#f87171; padding:2px 8px; border-radius:9999px; font-size:.68rem; font-weight:700; }
+
+    /* ── Slider ── */
+    input[type=range] { accent-color:#22d3ee; cursor:pointer; }
+    input[type=range].violet { accent-color:#a78bfa; }
+    input[type=range].emerald{ accent-color:#34d399; }
+
+    /* ── Text input ── */
+    .txt-input {
+      background:#0f172a; border:1px solid #334155; border-radius:8px;
+      color:#e2e8f0; padding:8px 12px; font-size:.82rem; width:100%;
+      transition:border-color .2s;
+    }
+    .txt-input:focus { outline:none; border-color:#22d3ee; }
+    .txt-input.violet:focus { border-color:#a78bfa; }
+    .txt-input.emerald:focus{ border-color:#34d399; }
+
+    /* ── Empty state ── */
+    .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:48px 24px; color:#334155; gap:12px; }
+    .empty-state svg { opacity:.3; }
+
+    /* ── NRU bits ── */
+    .bit-r { color:#38bdf8; font-size:.65rem; font-weight:700; }
+    .bit-m { color:#fb923c; font-size:.65rem; font-weight:700; }
+  </style>
+</head>
+<body>
+
+<!-- ================================================================ HEADER -->
+<header class="sticky top-0 z-40 border-b border-slate-800" style="background:rgba(2,6,23,.92);backdrop-filter:blur(18px)">
+  <div class="max-w-screen-xl mx-auto px-5 py-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h1 class="gradient-title text-2xl font-black tracking-tight">OS-RMS</h1>
+        <p class="text-slate-500 text-xs mt-0.5">Interactive CPU Scheduling · Contiguous Memory · Virtual Page Replacement Simulator</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <span class="glass flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold">
+          <span class="pulse-dot" style="background:#22d3ee"></span><span class="text-cyan-400">CPU Active</span>
+        </span>
+        <span class="glass flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold">
+          <span class="pulse-dot" style="background:#a78bfa"></span><span class="text-violet-400">RAM Allocated</span>
+        </span>
+        <span class="glass flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold">
+          <span class="pulse-dot" style="background:#34d399"></span><span class="text-emerald-400">Virtual Memory Paging</span>
+        </span>
+      </div>
+    </div>
+    <!-- Tabs -->
+    <nav class="flex mt-4 border-b border-slate-800 gap-1 overflow-x-auto">
+      <button class="tab-btn tab-cpu" id="tab-cpu" onclick="switchTab('cpu')">
+        <i data-lucide="cpu" class="w-3.5 h-3.5"></i> CPU Scheduling
+      </button>
+      <button class="tab-btn" id="tab-mem" onclick="switchTab('mem')">
+        <i data-lucide="server" class="w-3.5 h-3.5"></i> Memory Allocation
+      </button>
+      <button class="tab-btn" id="tab-page" onclick="switchTab('page')">
+        <i data-lucide="layers" class="w-3.5 h-3.5"></i> Page Replacement
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main class="max-w-screen-xl mx-auto px-5 py-6">
+
+<!-- ================================================================ TAB 1: CPU -->
+<div class="tab-panel visible" id="panel-cpu">
+  <div class="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-5">
+
+    <!-- LEFT: Controls -->
+    <div class="glass p-5 flex flex-col gap-5">
+      <div>
+        <h2 class="text-sm font-bold text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <i data-lucide="settings-2" class="w-4 h-4"></i> Algorithm
+        </h2>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="algo-btn sel-cyan" onclick="selectCpuAlgo('fcfs',this)">FCFS</button>
+          <button class="algo-btn" onclick="selectCpuAlgo('sjf',this)">SJF</button>
+          <button class="algo-btn" onclick="selectCpuAlgo('srtf',this)">SRTF</button>
+          <button class="algo-btn" onclick="selectCpuAlgo('rr',this)">Round Robin</button>
+        </div>
+      </div>
+      <div id="quantum-wrap" style="display:none">
+        <label class="text-xs text-slate-400 font-semibold flex items-center justify-between mb-1">
+          Time Quantum <span class="text-cyan-400 font-bold" id="quantum-val">4</span>
+        </label>
+        <input type="range" id="quantum-slider" min="1" max="10" value="4"
+          oninput="document.getElementById('quantum-val').textContent=this.value" class="w-full">
+      </div>
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-sm font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-2">
+            <i data-lucide="list" class="w-4 h-4"></i> Processes
+          </h2>
+          <button class="btn-ghost" onclick="addCpuRow()"><i data-lucide="plus" class="w-3.5 h-3.5"></i> Add</button>
+        </div>
+        <div style="max-height:230px;overflow-y:auto">
+          <table class="proc-table">
+            <thead><tr><th>PID</th><th>AT</th><th>BT</th><th></th></tr></thead>
+            <tbody id="cpu-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button class="btn-run btn-cyan flex-1" id="cpu-run-btn" onclick="runCPU()">
+          <i data-lucide="play" class="w-4 h-4"></i> Run Simulation
+        </button>
+        <button class="btn-ghost" onclick="loadCpuDemo()">
+          <i data-lucide="database" class="w-3.5 h-3.5"></i> Demo
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div class="flex flex-col gap-5">
+      <!-- Gantt -->
+      <div class="glass p-5">
+        <h2 class="text-sm font-bold text-cyan-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <i data-lucide="bar-chart-horizontal" class="w-4 h-4"></i> Gantt Chart
+        </h2>
+        <div id="gantt-out">
+          <div class="empty-state"><i data-lucide="activity" class="w-12 h-12"></i><p class="text-sm">Run a simulation to see the Gantt chart</p></div>
+        </div>
+      </div>
+      <!-- Table -->
+      <div class="glass p-5">
+        <h2 class="text-sm font-bold text-cyan-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <i data-lucide="table" class="w-4 h-4"></i> Performance Table
+        </h2>
+        <div id="cpu-table-out" style="overflow-x:auto">
+          <div class="empty-state"><i data-lucide="clipboard-list" class="w-10 h-10"></i><p class="text-xs">Results will appear here</p></div>
+        </div>
+      </div>
+      <!-- Metrics -->
+      <div id="cpu-metrics-out"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ TAB 2: MEMORY -->
+<div class="tab-panel" id="panel-mem">
+  <div class="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-5">
+
+    <!-- LEFT: Controls -->
+    <div class="glass p-5 flex flex-col gap-5">
+      <div>
+        <h2 class="text-sm font-bold text-violet-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <i data-lucide="settings-2" class="w-4 h-4"></i> Strategy
+        </h2>
+        <div class="flex flex-col gap-2">
+          <button class="algo-btn sel-violet" onclick="selectMemAlgo('ff',this)">First Fit</button>
+          <button class="algo-btn" onclick="selectMemAlgo('bf',this)">Best Fit</button>
+          <button class="algo-btn" onclick="selectMemAlgo('wf',this)">Worst Fit</button>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 font-semibold mb-1.5 block">Memory Block Sizes (MB, comma-separated)</label>
+        <input type="text" id="mem-blocks" class="txt-input violet" placeholder="100, 500, 200, 300, 600">
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 font-semibold mb-1.5 block">Process Requests (MB, comma-separated)</label>
+        <input type="text" id="mem-procs" class="txt-input violet" placeholder="212, 417, 112, 426">
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button class="btn-run btn-violet flex-1" id="mem-run-btn" onclick="runMemory()">
+          <i data-lucide="play" class="w-4 h-4"></i> Run Allocation
+        </button>
+        <button class="btn-ghost" onclick="loadMemDemo()">
+          <i data-lucide="database" class="w-3.5 h-3.5"></i> Demo
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div class="flex flex-col gap-5">
+      <div class="glass p-5">
+        <h2 class="text-sm font-bold text-violet-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <i data-lucide="layout" class="w-4 h-4"></i> Memory Map
+        </h2>
+        <div id="mem-map-out">
+          <div class="empty-state"><i data-lucide="server" class="w-12 h-12"></i><p class="text-sm">Run allocation to visualize RAM partitions</p></div>
+        </div>
+      </div>
+      <div class="glass p-5">
+        <h2 class="text-sm font-bold text-violet-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <i data-lucide="table" class="w-4 h-4"></i> Allocation Table
+        </h2>
+        <div id="mem-table-out" style="overflow-x:auto">
+          <div class="empty-state"><i data-lucide="clipboard-list" class="w-10 h-10"></i><p class="text-xs">Results will appear here</p></div>
+        </div>
+      </div>
+      <div id="mem-metrics-out"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================ TAB 3: PAGE REPLACEMENT -->
+<div class="tab-panel" id="panel-page">
+  <div class="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-5">
+
+    <!-- LEFT: Controls -->
+    <div class="glass p-5 flex flex-col gap-5">
+      <div>
+        <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <i data-lucide="settings-2" class="w-4 h-4"></i> Algorithm
+        </h2>
+        <div class="flex flex-col gap-2">
+          <button class="algo-btn sel-emerald" onclick="selectPageAlgo('fifo',this)">FIFO (First In, First Out)</button>
+          <button class="algo-btn" onclick="selectPageAlgo('lru',this)">LRU (Least Recently Used)</button>
+          <button class="algo-btn" onclick="selectPageAlgo('nru',this)">NRU / Clock Algorithm</button>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 font-semibold mb-1.5 block">Reference String (comma-separated)</label>
+        <input type="text" id="page-ref" class="txt-input emerald" placeholder="7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2">
+      </div>
+      <div>
+        <label class="text-xs text-slate-400 font-semibold flex items-center justify-between mb-1">
+          Number of Frames <span class="text-emerald-400 font-bold" id="frames-val">3</span>
+        </label>
+        <input type="range" id="frames-slider" min="1" max="8" value="3" class="emerald w-full"
+          oninput="document.getElementById('frames-val').textContent=this.value">
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button class="btn-run btn-emerald flex-1" id="page-run-btn" onclick="runPage()">
+          <i data-lucide="play" class="w-4 h-4"></i> Simulate Paging
+        </button>
+        <button class="btn-ghost" onclick="loadPageDemo()">
+          <i data-lucide="database" class="w-3.5 h-3.5"></i> Demo
+        </button>
+      </div>
+      <!-- NRU Legend -->
+      <div id="nru-legend" style="display:none" class="glass p-3 rounded-lg">
+        <p class="text-xs font-bold text-emerald-400 mb-2">NRU / Clock Bit Classes</p>
+        <div class="text-xs text-slate-400 space-y-1">
+          <div>Class 0: R=0, M=0 — Best to replace</div>
+          <div>Class 1: R=0, M=1</div>
+          <div>Class 2: R=1, M=0</div>
+          <div>Class 3: R=1, M=1 — Last choice</div>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">R bits cleared each clock tick. M=1 means page was written.</p>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div class="flex flex-col gap-5">
+      <div class="glass p-5">
+        <h2 class="text-sm font-bold text-emerald-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <i data-lucide="grid" class="w-4 h-4"></i> Step-by-Step Frame Matrix
+        </h2>
+        <div id="page-grid-out">
+          <div class="empty-state"><i data-lucide="layers" class="w-12 h-12"></i><p class="text-sm">Run simulation to view page frames</p></div>
+        </div>
+      </div>
+      <div id="page-metrics-out"></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+const state = {
+  cpu:  { algo: 'fcfs', rowCounter: 0 },
+  mem:  { algo: 'ff' },
+  page: { algo: 'fifo' }
+};
+
+// ════════════════════════════════════════════════
+// PROCESS COLOR PALETTE
+// ════════════════════════════════════════════════
+const PALETTE = [
+  '#0891b2','#7c3aed','#059669','#d97706',
+  '#dc2626','#0284c7','#9333ea','#16a34a',
+  '#ea580c','#0f766e','#4f46e5','#b45309'
+];
+function procColor(pid, all) {
+  const idx = all.indexOf(pid);
+  return PALETTE[idx % PALETTE.length];
+}
+
+// ════════════════════════════════════════════════
+// TAB SWITCHING
+// ════════════════════════════════════════════════
+function switchTab(tab) {
+  ['cpu','mem','page'].forEach(t => {
+    document.getElementById('tab-'+t).className = 'tab-btn';
+    document.getElementById('panel-'+t).classList.remove('visible');
+  });
+  const cls = { cpu:'tab-cpu', mem:'tab-mem', page:'tab-page' };
+  document.getElementById('tab-'+tab).classList.add(cls[tab]);
+  document.getElementById('panel-'+tab).classList.add('visible');
+  lucide.createIcons();
+}
+
+// ════════════════════════════════════════════════
+// CPU — PROCESS TABLE
+// ════════════════════════════════════════════════
+function addCpuRow(pid, at, bt) {
+  state.cpu.rowCounter++;
+  const id = pid || 'P' + state.cpu.rowCounter;
+  const body = document.getElementById('cpu-body');
+  const tr = document.createElement('tr');
+  tr.dataset.pid = id;
+  tr.innerHTML = `
+    <td class="text-cyan-400 font-bold text-xs">${id}</td>
+    <td><input type="number" value="${at !== undefined ? at : 0}" min="0" class="at-inp"></td>
+    <td><input type="number" value="${bt !== undefined ? bt : 4}" min="1" class="bt-inp"></td>
+    <td><button onclick="this.closest('tr').remove()" class="text-slate-600 hover:text-red-400 transition-colors">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button></td>`;
+  body.appendChild(tr);
+}
+
+function loadCpuDemo() {
+  document.getElementById('cpu-body').innerHTML = '';
+  state.cpu.rowCounter = 0;
+  [['P1',0,6],['P2',1,4],['P3',2,2],['P4',3,5],['P5',4,3]].forEach(([p,a,b]) => addCpuRow(p,a,b));
+  state.cpu.rowCounter = 5;
+}
+
+function getCpuProcs() {
+  return Array.from(document.querySelectorAll('#cpu-body tr')).map(r => ({
+    pid: r.dataset.pid,
+    at: parseInt(r.querySelector('.at-inp').value) || 0,
+    bt: parseInt(r.querySelector('.bt-inp').value) || 1,
+  })).filter(p => p.bt > 0);
+}
+
+function selectCpuAlgo(algo, el) {
+  state.cpu.algo = algo;
+  document.querySelectorAll('#panel-cpu .algo-btn').forEach(b => { b.classList.remove('sel-cyan'); });
+  el.classList.add('sel-cyan');
+  document.getElementById('quantum-wrap').style.display = algo === 'rr' ? 'block' : 'none';
+}
+
+// ════════════════════════════════════════════════
+// CPU — ALGORITHMS
+// ════════════════════════════════════════════════
+function algoCPU_FCFS(procs) {
+  const sorted = [...procs].sort((a,b) => a.at - b.at || a.pid.localeCompare(b.pid));
+  const gantt = [], results = [];
+  let t = 0;
+  for (const p of sorted) {
+    if (t < p.at) { gantt.push({pid:'Idle', start:t, end:p.at, idle:true}); t = p.at; }
+    const s = t, e = t + p.bt;
+    gantt.push({pid:p.pid, start:s, end:e});
+    results.push({pid:p.pid, at:p.at, bt:p.bt, ct:e, tat:e-p.at, wt:e-p.at-p.bt});
+    t = e;
+  }
+  return {gantt, results};
+}
+
+function algoCPU_SJF(procs) {
+  const ps = procs.map(p => ({...p}));
+  const gantt = [], results = [];
+  const done = new Set();
+  let t = 0;
+  while (done.size < ps.length) {
+    const avail = ps.filter(p => p.at <= t && !done.has(p.pid));
+    if (!avail.length) {
+      const nxt = ps.filter(p => !done.has(p.pid)).sort((a,b) => a.at - b.at)[0];
+      gantt.push({pid:'Idle', start:t, end:nxt.at, idle:true}); t = nxt.at; continue;
+    }
+    avail.sort((a,b) => a.bt - b.bt || a.at - b.at);
+    const p = avail[0];
+    const s = t, e = t + p.bt;
+    gantt.push({pid:p.pid, start:s, end:e});
+    results.push({pid:p.pid, at:p.at, bt:p.bt, ct:e, tat:e-p.at, wt:e-p.at-p.bt});
+    done.add(p.pid); t = e;
+  }
+  return {gantt, results};
+}
+
+function algoCPU_SRTF(procs) {
+  const ps = procs.map(p => ({...p, rem:p.bt}));
+  const gantt = [], results = [];
+  let t = 0, completed = 0, prevPid = null, bStart = 0;
+  const maxT = ps.reduce((s,p) => s + p.bt, 0) + Math.max(...ps.map(p => p.at)) + 5;
+  while (completed < ps.length && t < maxT) {
+    const avail = ps.filter(p => p.at <= t && p.rem > 0);
+    if (!avail.length) {
+      if (prevPid !== null) { gantt.push({pid:prevPid, start:bStart, end:t}); prevPid = null; }
+      const nxt = ps.filter(p => p.rem > 0).sort((a,b) => a.at - b.at)[0];
+      if (!nxt) break;
+      gantt.push({pid:'Idle', start:t, end:nxt.at, idle:true}); t = nxt.at; continue;
+    }
+    avail.sort((a,b) => a.rem - b.rem || a.at - b.at);
+    const p = avail[0];
+    if (p.pid !== prevPid) {
+      if (prevPid !== null) gantt.push({pid:prevPid, start:bStart, end:t});
+      bStart = t; prevPid = p.pid;
+    }
+    p.rem--; t++;
+    if (p.rem === 0) {
+      gantt.push({pid:p.pid, start:bStart, end:t});
+      results.push({pid:p.pid, at:p.at, bt:p.bt, ct:t, tat:t-p.at, wt:t-p.at-p.bt});
+      completed++; prevPid = null;
+    }
+  }
+  return {gantt, results};
+}
+
+function algoCPU_RR(procs, quantum) {
+  const ps = procs.map(p => ({...p, rem:p.bt})).sort((a,b) => a.at - b.at);
+  const gantt = [], results = [];
+  let t = 0, qi = 0, queue = [];
+  while (qi < ps.length && ps[qi].at <= t) queue.push(ps[qi++]);
+  while (queue.length > 0 || qi < ps.length) {
+    if (!queue.length) {
+      const nxt = ps[qi];
+      gantt.push({pid:'Idle', start:t, end:nxt.at, idle:true}); t = nxt.at;
+      while (qi < ps.length && ps[qi].at <= t) queue.push(ps[qi++]);
+      continue;
+    }
+    const p = queue.shift();
+    const run = Math.min(quantum, p.rem);
+    gantt.push({pid:p.pid, start:t, end:t+run});
+    p.rem -= run; t += run;
+    while (qi < ps.length && ps[qi].at <= t) queue.push(ps[qi++]);
+    if (p.rem > 0) queue.push(p);
+    else results.push({pid:p.pid, at:p.at, bt:p.bt, ct:t, tat:t-p.at, wt:t-p.at-p.bt});
+  }
+  return {gantt, results};
+}
+
+// ════════════════════════════════════════════════
+// CPU — RUN & RENDER
+// ════════════════════════════════════════════════
+function runCPU() {
+  const procs = getCpuProcs();
+  if (!procs.length) { alert('Add at least one process.'); return; }
+  const btn = document.getElementById('cpu-run-btn');
+  setBtnLoading(btn, true, 'cyan');
+  setTimeout(() => {
+    const algo = state.cpu.algo;
+    const quantum = parseInt(document.getElementById('quantum-slider').value);
+    let res;
+    if (algo === 'fcfs') res = algoCPU_FCFS(procs);
+    else if (algo === 'sjf') res = algoCPU_SJF(procs);
+    else if (algo === 'srtf') res = algoCPU_SRTF(procs);
+    else res = algoCPU_RR(procs, quantum);
+    renderGantt(res.gantt, procs);
+    renderCpuTable(res.results);
+    renderCpuMetrics(res.results, res.gantt);
+    setBtnLoading(btn, false, 'cyan', 'Run Simulation');
+  }, 250);
+}
+
+function renderGantt(gantt, procs) {
+  const allPids = procs.map(p => p.pid);
+  const totalTime = gantt[gantt.length - 1]?.end || 1;
+  const container = document.getElementById('gantt-out');
+  // Legend
+  const legendItems = allPids.map(pid =>
+    `<span class="flex items-center gap-1.5"><span class="legend-dot" style="background:${procColor(pid,allPids)}"></span><span class="text-xs text-slate-400">${pid}</span></span>`
+  ).join('') + `<span class="flex items-center gap-1.5"><span class="legend-dot" style="background:repeating-linear-gradient(45deg,#1e293b,#1e293b 4px,#0f172a 4px,#0f172a 8px)"></span><span class="text-xs text-slate-400">Idle</span></span>`;
+  // Blocks
+  const blocks = gantt.map(b => {
+    const w = ((b.end - b.start) / totalTime * 100).toFixed(2);
+    const color = b.idle ? '' : procColor(b.pid, allPids);
+    const bg = b.idle ? '' : `background:${color}`;
+    const duration = b.end - b.start;
+    const label = duration > 0 ? b.pid : '';
+    return `<div class="gantt-block ${b.idle?'idle':''}" style="${bg};flex:${b.end-b.start}">
+      ${label}
+      <div class="gantt-tooltip">
+        <div class="font-bold" style="color:${b.idle?'#64748b':color}">${b.pid}</div>
+        <div class="text-slate-400">Start: <span class="text-white">${b.start}</span></div>
+        <div class="text-slate-400">End: <span class="text-white">${b.end}</span></div>
+        <div class="text-slate-400">Duration: <span class="text-white">${duration}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+  // Markers — pick ~8 evenly spaced
+  const step = Math.ceil(totalTime / 10);
+  let markerHtml = '<div class="gantt-markers">';
+  for (let i = 0; i <= totalTime; i += step) markerHtml += `<span>${i}</span>`;
+  if (totalTime % step !== 0) markerHtml += `<span>${totalTime}</span>`;
+  markerHtml += '</div>';
+  container.innerHTML = `
+    <div id="gantt-container">
+      <div class="gantt-track">${blocks}</div>
+      ${markerHtml}
+    </div>
+    <div class="gantt-legend mt-3">${legendItems}</div>
+  `;
+}
+
+function renderCpuTable(results) {
+  const sorted = [...results].sort((a,b) => a.pid.localeCompare(b.pid));
+  const rows = sorted.map(r => `
+    <tr>
+      <td class="font-bold text-cyan-400">${r.pid}</td>
+      <td>${r.at}</td><td>${r.bt}</td>
+      <td class="text-slate-200">${r.ct}</td>
+      <td class="text-violet-400">${r.tat}</td>
+      <td class="text-amber-400">${r.wt}</td>
+    </tr>`).join('');
+  document.getElementById('cpu-table-out').innerHTML = `
+    <table class="res-table">
+      <thead><tr><th>PID</th><th>AT</th><th>BT</th><th>CT</th><th>TAT</th><th>WT</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderCpuMetrics(results, gantt) {
+  const n = results.length;
+  const avgWT  = (results.reduce((s,r) => s+r.wt,  0) / n).toFixed(2);
+  const avgTAT = (results.reduce((s,r) => s+r.tat, 0) / n).toFixed(2);
+  const totalExec = gantt[gantt.length-1]?.end || 0;
+  const busyTime = gantt.filter(b => !b.idle).reduce((s,b) => s+(b.end-b.start), 0);
+  const util = totalExec ? ((busyTime/totalExec)*100).toFixed(1) : '0.0';
+  const throughput = totalExec ? (n/totalExec).toFixed(3) : '0';
+  document.getElementById('cpu-metrics-out').innerHTML = `
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      ${metCard('Avg Waiting Time', avgWT + ' units', '#fb923c', 'text-amber-400')}
+      ${metCard('Avg Turnaround Time', avgTAT + ' units', '#a78bfa', 'text-violet-400')}
+      ${metCard('CPU Utilization', util + '%', '#22d3ee', 'text-cyan-400')}
+      ${metCard('Throughput', throughput + ' proc/unit', '#34d399', 'text-emerald-400')}
+    </div>`;
+}
+
+// ════════════════════════════════════════════════
+// MEMORY — ALGORITHMS
+// ════════════════════════════════════════════════
+function selectMemAlgo(algo, el) {
+  state.mem.algo = algo;
+  document.querySelectorAll('#panel-mem .algo-btn').forEach(b => b.classList.remove('sel-violet'));
+  el.classList.add('sel-violet');
+}
+
+function loadMemDemo() {
+  document.getElementById('mem-blocks').value = '100, 500, 200, 300, 600';
+  document.getElementById('mem-procs').value  = '212, 417, 112, 426';
+}
+
+function runMemAlgo(blocks, procs, algo) {
+  const results = [];
+  for (const proc of procs) {
+    let chosen = -1;
+    if (algo === 'ff') {                         // First Fit
+      for (let i = 0; i < blocks.length; i++) {
+        if (blocks[i].rem >= proc.size) { chosen = i; break; }
+      }
+    } else if (algo === 'bf') {                  // Best Fit
+      let minWaste = Infinity;
+      for (let i = 0; i < blocks.length; i++) {
+        const w = blocks[i].rem - proc.size;
+        if (w >= 0 && w < minWaste) { minWaste = w; chosen = i; }
+      }
+    } else {                                     // Worst Fit
+      let maxRem = -1;
+      for (let i = 0; i < blocks.length; i++) {
+        if (blocks[i].rem >= proc.size && blocks[i].rem > maxRem) { maxRem = blocks[i].rem; chosen = i; }
+      }
+    }
+    if (chosen === -1) {
+      results.push({procId:proc.id, reqSize:proc.size, blockId:'—', blockSize:'—', frag:'—', status:'fail'});
+    } else {
+      const frag = blocks[chosen].rem - proc.size;
+      blocks[chosen].allocations.push({procId:proc.id, size:proc.size});
+      blocks[chosen].rem -= proc.size;
+      // Internal frag only on the last allocation that fills the block
+      blocks[chosen].internalFrag = blocks[chosen].rem; // remaining space after this process
+      blocks[chosen].rem = 0;                            // block treated as full for further allocations
+      results.push({procId:proc.id, reqSize:proc.size, blockId:chosen+1,
+        blockSize:blocks[chosen].size, allocSize:proc.size, frag, status:'ok'});
+    }
+  }
+  return results;
+}
+
+function runMemory() {
+  const rawBlocks = document.getElementById('mem-blocks').value.trim();
+  const rawProcs  = document.getElementById('mem-procs').value.trim();
+  if (!rawBlocks || !rawProcs) { alert('Please fill in both fields.'); return; }
+  const blockSizes = rawBlocks.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0);
+  const procSizes  = rawProcs.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0);
+  if (!blockSizes.length || !procSizes.length) { alert('Invalid input values.'); return; }
+  const btn = document.getElementById('mem-run-btn');
+  setBtnLoading(btn, true, 'violet');
+  setTimeout(() => {
+    const blocks = blockSizes.map((size, i) => ({id:i+1, size, rem:size, allocations:[], internalFrag:0, allocated:false}));
+    const procs  = procSizes.map((size, i) => ({id:'P'+(i+1), size}));
+    const results = runMemAlgo(blocks, procs, state.mem.algo);
+    renderMemMap(blocks, results, procSizes);
+    renderMemTable(results);
+    renderMemMetrics(blocks, results);
+    setBtnLoading(btn, false, 'violet', 'Run Allocation');
+  }, 250);
+}
+
+function renderMemMap(blocks, results, procSizes) {
+  const totalRam = blocks.reduce((s,b) => s+b.size, 0);
+  const rows = blocks.map((b, i) => {
+    const segs = [];
+    if (b.allocations && b.allocations.length) {
+      b.allocations.forEach((alloc, ai) => {
+        const pct = (alloc.size / b.size * 100).toFixed(2);
+        const color = PALETTE[(results.findIndex(r => r.procId === alloc.procId)) % PALETTE.length];
+        segs.push(`<div class="mem-seg" style="width:${pct}%;background:${color};min-width:24px" title="${alloc.procId}: ${alloc.size}MB">
+          <span class="text-white text-xs">${alloc.procId}</span>
+        </div>`);
+      });
+      if (b.internalFrag > 0) {
+        const pct = (b.internalFrag / b.size * 100).toFixed(2);
+        segs.push(`<div class="mem-seg" style="width:${pct}%;background:repeating-linear-gradient(45deg,#78350f,#78350f 4px,#451a03 4px,#451a03 8px);min-width:16px" title="Internal Frag: ${b.internalFrag}MB">
+          <span class="text-amber-400 text-xs">Frag</span>
+        </div>`);
+      }
+    } else {
+      segs.push(`<div class="mem-seg" style="width:100%;background:#0f172a;color:#334155" title="Free: ${b.size}MB">
+        <span class="text-slate-500 text-xs tracking-widest">FREE ${b.size}MB</span>
+      </div>`);
+    }
+    return `<div class="mem-block-row">
+      <div class="mem-block-label">B${b.id} <span class="text-slate-600">${b.size}MB</span></div>
+      <div class="mem-block-bar" style="flex:${b.size}">${segs.join('')}</div>
+    </div>`;
+  }).join('');
+  const legend = `<div class="flex flex-wrap gap-3 mt-4 pt-4 border-t border-slate-800">
+    <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#0891b2"></span><span class="text-xs text-slate-400">Allocated</span></span>
+    <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:repeating-linear-gradient(45deg,#78350f,#78350f 4px,#451a03 4px,#451a03 8px)"></span><span class="text-xs text-slate-400">Internal Fragmentation</span></span>
+    <span class="flex items-center gap-1.5"><span class="legend-dot" style="background:#0f172a;border:1px solid #334155"></span><span class="text-xs text-slate-400">Free Block</span></span>
+  </div>`;
+  document.getElementById('mem-map-out').innerHTML = `<div class="mem-map-wrap">${rows}</div>${legend}`;
+}
+
+function renderMemTable(results) {
+  const rows = results.map(r => `
+    <tr>
+      <td class="font-bold text-violet-400">${r.procId}</td>
+      <td>${r.reqSize} MB</td>
+      <td>${r.blockId}</td>
+      <td>${r.blockSize !== '—' ? r.blockSize + ' MB' : '—'}</td>
+      <td>${r.frag !== '—' ? r.frag + ' MB' : '—'}</td>
+      <td>${r.status === 'ok'
+        ? '<span class="badge-hit">Allocated</span>'
+        : '<span class="badge-fault">Insufficient</span>'}</td>
+    </tr>`).join('');
+  document.getElementById('mem-table-out').innerHTML = `
+    <table class="res-table">
+      <thead><tr><th>Process</th><th>Requested</th><th>Block ID</th><th>Block Size</th><th>Internal Frag</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderMemMetrics(blocks, results) {
+  const totalRam = blocks.reduce((s,b) => s+b.size, 0);
+  const allocated = results.filter(r => r.status === 'ok').reduce((s,r) => s+r.reqSize, 0);
+  const frag = results.filter(r => r.status === 'ok').reduce((s,r) => s+(r.frag||0), 0);
+  const free = totalRam - allocated - frag;
+  document.getElementById('mem-metrics-out').innerHTML = `
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      ${metCard('Total RAM', totalRam+' MB', '#64748b', 'text-slate-400')}
+      ${metCard('Total Allocated', allocated+' MB', '#a78bfa', 'text-violet-400')}
+      ${metCard('Free Space', Math.max(0,free)+' MB', '#22d3ee', 'text-cyan-400')}
+      ${metCard('Internal Fragmentation', frag+' MB', '#fb923c', 'text-amber-400')}
+    </div>`;
+}
+
+// ════════════════════════════════════════════════
+// PAGE REPLACEMENT — ALGORITHMS
+// ════════════════════════════════════════════════
+function selectPageAlgo(algo, el) {
+  state.page.algo = algo;
+  document.querySelectorAll('#panel-page .algo-btn').forEach(b => b.classList.remove('sel-emerald'));
+  el.classList.add('sel-emerald');
+  document.getElementById('nru-legend').style.display = algo === 'nru' ? 'block' : 'none';
+}
+
+function loadPageDemo() {
+  document.getElementById('page-ref').value = '7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2';
+  document.getElementById('frames-slider').value = 3;
+  document.getElementById('frames-val').textContent = 3;
+}
+
+// Each step returns: { frames: [...], hit: bool, evicted: page|null, evictReason: string|null }
+function algoPage_FIFO(refStr, numFrames) {
+  const steps = [];
+  let frames = new Array(numFrames).fill(null);
+  let queue = []; // FIFO order — front is oldest
+  let faults = 0, hits = 0;
+  for (const page of refStr) {
+    const inFrames = frames.includes(page);
+    let evicted = null, evictReason = null;
+    if (inFrames) {
+      hits++;
+      steps.push({frames: [...frames], hit: true, incoming: page, evicted: null, evictReason: null});
+    } else {
+      faults++;
+      if (frames.includes(null)) {
+        const emptyIdx = frames.indexOf(null);
+        frames[emptyIdx] = page;
+        queue.push(page);
+      } else {
+        evicted = queue.shift();
+        evictReason = `Oldest (FIFO)`;
+        const idx = frames.indexOf(evicted);
+        frames[idx] = page;
+        queue.push(page);
+      }
+      steps.push({frames: [...frames], hit: false, incoming: page, evicted, evictReason});
+    }
+  }
+  return {steps, faults, hits};
+}
+
+function algoPage_LRU(refStr, numFrames) {
+  const steps = [];
+  let frames = new Array(numFrames).fill(null);
+  let lastUsed = {}; // page -> last used step index
+  let faults = 0, hits = 0;
+  for (let i = 0; i < refStr.length; i++) {
+    const page = refStr[i];
+    const inFrames = frames.includes(page);
+    let evicted = null, evictReason = null;
+    if (inFrames) {
+      hits++;
+      lastUsed[page] = i;
+      steps.push({frames: [...frames], hit: true, incoming: page, evicted: null, evictReason: null});
+    } else {
+      faults++;
+      if (frames.includes(null)) {
+        const emptyIdx = frames.indexOf(null);
+        frames[emptyIdx] = page;
+        lastUsed[page] = i;
+      } else {
+        // Find frame with smallest lastUsed
+        let lruPage = frames[0], lruTime = lastUsed[frames[0]] ?? -1;
+        for (const f of frames) {
+          const t = lastUsed[f] ?? -1;
+          if (t < lruTime) { lruTime = t; lruPage = f; }
+        }
+        evicted = lruPage;
+        evictReason = `LRU (last used at step ${lruTime + 1})`;
+        const idx = frames.indexOf(evicted);
+        frames[idx] = page;
+        lastUsed[page] = i;
+        delete lastUsed[evicted];
+      }
+      steps.push({frames: [...frames], hit: false, incoming: page, evicted, evictReason});
+    }
+  }
+  return {steps, faults, hits};
+}
+
+function algoPage_NRU(refStr, numFrames) {
+  // Each frame slot tracks: { page, R, M }
+  // R is cleared every 8 accesses (simulated clock tick), M set on every access
+  const steps = [];
+  let frameData = new Array(numFrames).fill(null).map(() => ({page: null, R: 0, M: 0}));
+  let faults = 0, hits = 0;
+  const CLEAR_INTERVAL = 8; // clear R every 8 steps
+
+  for (let i = 0; i < refStr.length; i++) {
+    // Simulate clock tick: clear R bits periodically
+    if (i > 0 && i % CLEAR_INTERVAL === 0) {
+      frameData.forEach(fd => { if (fd.page !== null) fd.R = 0; });
+    }
+    const page = refStr[i];
+    const frameIdx = frameData.findIndex(fd => fd.page === page);
+    let evicted = null, evictReason = null;
+
+    if (frameIdx !== -1) {
+      hits++;
+      frameData[frameIdx].R = 1;
+      frameData[frameIdx].M = (Math.random() > 0.5) ? 1 : 0; // simulate write sometimes
+      steps.push({
+        frames: frameData.map(fd => fd.page),
+        frameDetails: frameData.map(fd => ({...fd})),
+        hit: true, incoming: page, evicted: null, evictReason: null
+      });
+    } else {
+      faults++;
+      const emptyIdx = frameData.findIndex(fd => fd.page === null);
+      if (emptyIdx !== -1) {
+        frameData[emptyIdx] = {page, R:1, M:0};
+      } else {
+        // NRU: classify frames and evict lowest class
+        // class 0: R=0,M=0 | class 1: R=0,M=1 | class 2: R=1,M=0 | class 3: R=1,M=1
+        const getClass = fd => fd.R * 2 + fd.M;
+        let bestClass = 4, bestIdx = 0;
+        for (let j = 0; j < frameData.length; j++) {
+          const c = getClass(frameData[j]);
+          if (c < bestClass) { bestClass = c; bestIdx = j; }
+        }
+        evicted = frameData[bestIdx].page;
+        evictReason = `NRU Class ${bestClass} (R=${frameData[bestIdx].R}, M=${frameData[bestIdx].M})`;
+        frameData[bestIdx] = {page, R:1, M:0};
+      }
+      steps.push({
+        frames: frameData.map(fd => fd.page),
+        frameDetails: frameData.map(fd => ({...fd})),
+        hit: false, incoming: page, evicted, evictReason
+      });
+    }
+  }
+  return {steps, faults, hits};
+}
+
+// ════════════════════════════════════════════════
+// PAGE — RUN & RENDER
+// ════════════════════════════════════════════════
+function runPage() {
+  const raw = document.getElementById('page-ref').value.trim();
+  if (!raw) { alert('Enter a reference string.'); return; }
+  const refStr = raw.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+  if (!refStr.length) { alert('Invalid reference string.'); return; }
+  const numFrames = parseInt(document.getElementById('frames-slider').value);
+  const algo = state.page.algo;
+  const btn = document.getElementById('page-run-btn');
+  setBtnLoading(btn, true, 'emerald');
+  setTimeout(() => {
+    let res;
+    if (algo === 'fifo') res = algoPage_FIFO(refStr, numFrames);
+    else if (algo === 'lru') res = algoPage_LRU(refStr, numFrames);
+    else res = algoPage_NRU(refStr, numFrames);
+    renderPageGrid(res.steps, refStr, numFrames, algo);
+    renderPageMetrics(res, refStr.length);
+    setBtnLoading(btn, false, 'emerald', 'Simulate Paging');
+  }, 250);
+}
+
+function renderPageGrid(steps, refStr, numFrames, algo) {
+  const n = steps.length;
+  // Header row: incoming pages
+  let hdr = `<tr><th class="row-label">Step</th>`;
+  refStr.forEach((p, i) => { hdr += `<th>${i+1}</th>`; });
+  hdr += '</tr>';
+
+  // Incoming row
+  let incRow = `<tr><th class="row-label">Page</th>`;
+  steps.forEach(s => { incRow += `<td class="font-bold text-slate-200">${s.incoming}</td>`; });
+  incRow += '</tr>';
+
+  // Frame rows
+  let frameRows = '';
+  for (let f = 0; f < numFrames; f++) {
+    frameRows += `<tr><th class="row-label">Frame ${f}</th>`;
+    steps.forEach((s, si) => {
+      const v = s.frames[f];
+      const wasEvicted = si > 0 && steps[si].evicted === (si > 0 ? steps[si-1].frames[f] : null) && !s.hit;
+      let cellClass = 'cell-page';
+      let detail = '';
+      if (algo === 'nru' && s.frameDetails && v !== null) {
+        const fd = s.frameDetails[f];
+        if (fd && fd.page !== null) {
+          detail = `<span class="bit-r">R${fd.R}</span><span class="bit-m">M${fd.M}</span>`;
+        }
+      }
+      frameRows += `<td class="${cellClass}">${v !== null ? v : '<span class="cell-empty">—</span>'}${detail ? '<br>'+detail : ''}</td>`;
+    });
+    frameRows += '</tr>';
+  }
+
+  // Hit/Fault row
+  let hfRow = `<tr><th class="row-label">Result</th>`;
+  steps.forEach(s => {
+    hfRow += `<td class="${s.hit ? 'cell-hit' : 'cell-fault'}">
+      ${s.hit ? '<span class="badge-hit">HIT</span>' : '<span class="badge-fault">FAULT</span>'}
+    </td>`;
+  });
+  hfRow += '</tr>';
+
+  // Evicted row
+  let evRow = `<tr><th class="row-label">Evicted</th>`;
+  steps.forEach(s => {
+    if (!s.hit && s.evicted !== null) {
+      evRow += `<td class="cell-evict" title="${s.evictReason || ''}">${s.evicted}<br><span class="text-xs text-slate-500" style="font-style:normal">${s.evictReason ? '(' + s.evictReason.substring(0,18) + (s.evictReason.length>18?'…':'') + ')' : ''}</span></td>`;
+    } else {
+      evRow += `<td class="cell-empty">—</td>`;
+    }
+  });
+  evRow += '</tr>';
+
+  document.getElementById('page-grid-out').innerHTML = `
+    <div class="page-grid-wrap">
+      <table class="page-grid">
+        <thead>${hdr}</thead>
+        <tbody>${incRow}${frameRows}${hfRow}${evRow}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderPageMetrics(res, totalReqs) {
+  const hitRatio   = ((res.hits / totalReqs) * 100).toFixed(1);
+  const faultRatio = ((res.faults / totalReqs) * 100).toFixed(1);
+  document.getElementById('page-metrics-out').innerHTML = `
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      ${metCard('Total Requests', totalReqs, '#64748b', 'text-slate-300')}
+      ${metCard('Page Faults', res.faults, '#ef4444', 'text-red-400')}
+      ${metCard('Page Hits', res.hits, '#34d399', 'text-emerald-400')}
+      ${metCard('Hit Ratio', hitRatio+'%  /  Miss '+faultRatio+'%', '#22d3ee', 'text-cyan-400')}
+    </div>`;
+}
+
+// ════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════
+function metCard(label, value, color, cls) {
+  return `<div class="glass rounded-xl p-4" style="border-left:3px solid ${color}">
+    <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">${label}</div>
+    <div class="text-lg font-extrabold ${cls}">${value}</div>
+  </div>`;
+}
+
+function setBtnLoading(btn, loading, color, label) {
+  if (loading) {
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="15 45"/></svg> Computing...`;
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i> ${label}`;
+    lucide.createIcons();
+  }
+}
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+function init() {
+  lucide.createIcons();
+  // Pre-load demos
+  loadCpuDemo();
+  loadMemDemo();
+  loadPageDemo();
+  // Set initial tab
+  document.getElementById('tab-cpu').classList.add('tab-cpu');
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
