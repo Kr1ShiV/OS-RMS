@@ -11,6 +11,7 @@
       --cyan-glow:   0 0 20px rgba(6,182,212,0.4);
       --violet-glow: 0 0 20px rgba(139,92,246,0.4);
       --emerald-glow:0 0 20px rgba(16,185,129,0.4);
+      --rose-glow:   0 0 20px rgba(244,63,94,0.4);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -65,6 +66,7 @@
     .tab-cpu  { color:#22d3ee !important; border-bottom-color:#22d3ee !important; text-shadow:0 0 14px rgba(34,211,238,.6); }
     .tab-mem  { color:#a78bfa !important; border-bottom-color:#a78bfa !important; text-shadow:0 0 14px rgba(167,139,250,.6); }
     .tab-page { color:#34d399 !important; border-bottom-color:#34d399 !important; text-shadow:0 0 14px rgba(52,211,153,.6); }
+    .tab-bank { color:#fb7185 !important; border-bottom-color:#fb7185 !important; text-shadow:0 0 14px rgba(251,113,133,.6); }
 
     /* ── Tab panels ── */
     .tab-panel { display:none; animation: fadeUp .3s ease; }
@@ -82,6 +84,7 @@
     .sel-cyan   { background:#083344 !important; border-color:#22d3ee !important; color:#22d3ee !important; box-shadow:0 0 8px rgba(34,211,238,.3); }
     .sel-violet { background:#1e1b4b !important; border-color:#a78bfa !important; color:#a78bfa !important; box-shadow:0 0 8px rgba(167,139,250,.3); }
     .sel-emerald{ background:#022c22 !important; border-color:#34d399 !important; color:#34d399 !important; box-shadow:0 0 8px rgba(52,211,153,.3); }
+    .sel-rose   { background:#2d0a14 !important; border-color:#fb7185 !important; color:#fb7185 !important; box-shadow:0 0 8px rgba(251,113,133,.3); }
 
     /* ── Run buttons ── */
     .btn-run {
@@ -95,6 +98,8 @@
     .btn-violet:hover { box-shadow:var(--violet-glow); transform:translateY(-1px); }
     .btn-emerald{ background:linear-gradient(135deg,#059669,#0d9488); color:#fff; }
     .btn-emerald:hover{ box-shadow:var(--emerald-glow); transform:translateY(-1px); }
+    .btn-rose   { background:linear-gradient(135deg,#e11d48,#f43f5e); color:#fff; }
+    .btn-rose:hover   { box-shadow:var(--rose-glow);   transform:translateY(-1px); }
     .btn-ghost {
       display:inline-flex; align-items:center; gap:6px;
       padding:8px 16px; font-size:.78rem; font-weight:600;
@@ -208,8 +213,36 @@
     .empty-state svg { opacity:.3; }
 
     /* ── NRU bits ── */
-    .bit-r { color:#38bdf8; font-size:.65rem; font-weight:700; }
-    .bit-m { color:#fb923c; font-size:.65rem; font-weight:700; }
+    .bit-r { display:none; }
+    .bit-m { display:none; }
+
+    /* ── Banker's Algorithm ── */
+    input[type=range].rose { accent-color:#fb7185; }
+    .bank-matrix-wrap { overflow-x:auto; }
+    .bank-table { border-collapse:collapse; font-size:.78rem; width:100%; }
+    .bank-table th { background:#0f172a; color:#64748b; font-weight:600; letter-spacing:.05em; padding:9px 12px; border:1px solid #1e293b; text-align:center; white-space:nowrap; }
+    .bank-table td { border:1px solid #1e293b; padding:7px 12px; text-align:center; }
+    .bank-table tr:hover td { background:rgba(255,255,255,.02); }
+    .bank-table .safe-row td { background:rgba(16,185,129,.07); }
+    .bank-table .unsafe-row td { background:rgba(239,68,68,.07); }
+    .bank-inp {
+      background:#0f172a; border:1px solid #334155; border-radius:5px;
+      color:#e2e8f0; padding:3px 6px; width:46px; font-size:.75rem; text-align:center;
+      transition:border-color .2s;
+    }
+    .bank-inp:focus { outline:none; border-color:#fb7185; }
+    .safe-badge   { background:#065f46; color:#34d399; padding:2px 10px; border-radius:9999px; font-size:.7rem; font-weight:700; }
+    .unsafe-badge { background:#7f1d1d; color:#f87171; padding:2px 10px; border-radius:9999px; font-size:.7rem; font-weight:700; }
+    .seq-step {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:36px; height:36px; border-radius:50%;
+      background:#1e293b; border:2px solid #fb7185;
+      color:#fb7185; font-weight:800; font-size:.8rem;
+    }
+    .seq-arrow { color:#334155; font-size:1.1rem; display:flex; align-items:center; }
+    .need-ok  { color:#34d399; }
+    .need-bad { color:#f87171; }
+    .txt-input.rose:focus { border-color:#fb7185; }
   </style>
 </head>
 <body>
@@ -220,7 +253,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h1 class="gradient-title text-2xl font-black tracking-tight">OS-RMS</h1>
-        <p class="text-slate-500 text-xs mt-0.5">Interactive CPU Scheduling · Contiguous Memory · Virtual Page Replacement Simulator</p>
+        <p class="text-slate-500 text-xs mt-0.5">Interactive CPU Scheduling · Contiguous Memory · Virtual Page Replacement · Deadlock Avoidance Simulator</p>
       </div>
       <div class="flex flex-wrap gap-2">
         <span class="glass flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold">
@@ -231,6 +264,9 @@
         </span>
         <span class="glass flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold">
           <span class="pulse-dot" style="background:#34d399"></span><span class="text-emerald-400">Virtual Memory Paging</span>
+        </span>
+        <span class="glass flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold">
+          <span class="pulse-dot" style="background:#fb7185"></span><span class="text-rose-400">Deadlock Avoidance</span>
         </span>
       </div>
     </div>
@@ -244,6 +280,9 @@
       </button>
       <button class="tab-btn" id="tab-page" onclick="switchTab('page')">
         <i data-lucide="layers" class="w-3.5 h-3.5"></i> Page Replacement
+      </button>
+      <button class="tab-btn" id="tab-bank" onclick="switchTab('bank')">
+        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Banker's Algorithm
       </button>
     </nav>
   </div>
@@ -395,7 +434,6 @@
         <div class="flex flex-col gap-2">
           <button class="algo-btn sel-emerald" onclick="selectPageAlgo('fifo',this)">FIFO (First In, First Out)</button>
           <button class="algo-btn" onclick="selectPageAlgo('lru',this)">LRU (Least Recently Used)</button>
-          <button class="algo-btn" onclick="selectPageAlgo('nru',this)">NRU / Clock Algorithm</button>
         </div>
       </div>
       <div>
@@ -417,17 +455,6 @@
           <i data-lucide="database" class="w-3.5 h-3.5"></i> Demo
         </button>
       </div>
-      <!-- NRU Legend -->
-      <div id="nru-legend" style="display:none" class="glass p-3 rounded-lg">
-        <p class="text-xs font-bold text-emerald-400 mb-2">NRU / Clock Bit Classes</p>
-        <div class="text-xs text-slate-400 space-y-1">
-          <div>Class 0: R=0, M=0 — Best to replace</div>
-          <div>Class 1: R=0, M=1</div>
-          <div>Class 2: R=1, M=0</div>
-          <div>Class 3: R=1, M=1 — Last choice</div>
-        </div>
-        <p class="text-xs text-slate-500 mt-2">R bits cleared each clock tick. M=1 means page was written.</p>
-      </div>
     </div>
 
     <!-- RIGHT: Output -->
@@ -445,10 +472,133 @@
   </div>
 </div>
 
+<!-- ================================================================ TAB 4: BANKER'S ALGORITHM -->
+<div class="tab-panel" id="panel-bank">
+  <div class="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-5">
+
+    <!-- LEFT: Controls -->
+    <div class="glass p-5 flex flex-col gap-5">
+      <!-- Config -->
+      <div>
+        <h2 class="text-sm font-bold text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Configuration
+        </h2>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-slate-400 font-semibold flex justify-between mb-1">
+              Processes <span class="text-rose-400 font-bold" id="bank-np-val">5</span>
+            </label>
+            <input type="range" id="bank-np" class="rose w-full" min="1" max="10" value="5"
+              oninput="document.getElementById('bank-np-val').textContent=this.value; buildBankTables()">
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 font-semibold flex justify-between mb-1">
+              Resources <span class="text-rose-400 font-bold" id="bank-nr-val">3</span>
+            </label>
+            <input type="range" id="bank-nr" class="rose w-full" min="1" max="6" value="3"
+              oninput="document.getElementById('bank-nr-val').textContent=this.value; buildBankTables()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Available -->
+      <div>
+        <label class="text-xs text-slate-400 font-semibold mb-2 block">
+          Available Resources (one per resource type)
+        </label>
+        <div id="bank-avail-row" class="flex gap-2 flex-wrap"></div>
+      </div>
+
+      <!-- Allocation table -->
+      <div>
+        <h3 class="text-xs text-slate-400 font-semibold mb-2 uppercase tracking-wider">Allocation Matrix</h3>
+        <div id="bank-alloc-wrap" style="overflow-x:auto">
+          <table class="bank-table" id="bank-alloc-table"></table>
+        </div>
+      </div>
+
+      <!-- Max table -->
+      <div>
+        <h3 class="text-xs text-slate-400 font-semibold mb-2 uppercase tracking-wider">Maximum Demand Matrix</h3>
+        <div id="bank-max-wrap" style="overflow-x:auto">
+          <table class="bank-table" id="bank-max-table"></table>
+        </div>
+      </div>
+
+      <!-- Request checker -->
+      <div class="glass p-4 rounded-xl" style="border:1px solid rgba(251,113,133,.2)">
+        <h3 class="text-xs font-bold text-rose-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i> Resource Request Check
+        </h3>
+        <div class="flex gap-3 flex-wrap mb-3">
+          <div>
+            <label class="text-xs text-slate-500 block mb-1">Process (P0…Pn)</label>
+            <input type="number" id="req-pid" min="0" value="1" class="bank-inp" style="width:54px">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500 block mb-1">Request vector</label>
+            <input type="text" id="req-vec" placeholder="1, 0, 2" class="txt-input rose" style="width:140px; padding:4px 10px; font-size:.78rem;">
+          </div>
+        </div>
+        <button class="btn-ghost w-full justify-center" onclick="checkRequest()">
+          <i data-lucide="search" class="w-3.5 h-3.5"></i> Check Request Safety
+        </button>
+        <div id="req-result" class="mt-3 text-xs"></div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex gap-2 flex-wrap">
+        <button class="btn-run btn-rose flex-1" id="bank-run-btn" onclick="runBankers()">
+          <i data-lucide="play" class="w-4 h-4"></i> Run Safety Check
+        </button>
+        <button class="btn-ghost" onclick="loadBankDemo()">
+          <i data-lucide="database" class="w-3.5 h-3.5"></i> Demo
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div class="flex flex-col gap-5">
+
+      <!-- Safety verdict -->
+      <div class="glass p-5" id="bank-verdict-card">
+        <h2 class="text-sm font-bold text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-4 h-4"></i> Safety Analysis
+        </h2>
+        <div id="bank-verdict-out">
+          <div class="empty-state"><i data-lucide="shield" class="w-12 h-12"></i><p class="text-sm">Run the algorithm to check system safety</p></div>
+        </div>
+      </div>
+
+      <!-- Need matrix -->
+      <div class="glass p-5">
+        <h2 class="text-sm font-bold text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <i data-lucide="table" class="w-4 h-4"></i> Need Matrix  <span class="text-xs text-slate-500 font-normal ml-1">(Max − Allocation)</span>
+        </h2>
+        <div id="bank-need-out" style="overflow-x:auto">
+          <div class="empty-state" style="padding:24px"><i data-lucide="minus-circle" class="w-8 h-8"></i><p class="text-xs">Will appear after running</p></div>
+        </div>
+      </div>
+
+      <!-- Safe sequence trace -->
+      <div class="glass p-5">
+        <h2 class="text-sm font-bold text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <i data-lucide="git-merge" class="w-4 h-4"></i> Safe Sequence Trace
+        </h2>
+        <div id="bank-trace-out">
+          <div class="empty-state" style="padding:24px"><i data-lucide="list-ordered" class="w-8 h-8"></i><p class="text-xs">Step-by-step execution trace will appear here</p></div>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div id="bank-metrics-out"></div>
+    </div>
+  </div>
+</div>
+
 </main>
 
-<script>
-// ════════════════════════════════════════════════
+<script>// ════════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════════
 const state = {
@@ -474,11 +624,11 @@ function procColor(pid, all) {
 // TAB SWITCHING
 // ════════════════════════════════════════════════
 function switchTab(tab) {
-  ['cpu','mem','page'].forEach(t => {
+  ['cpu','mem','page','bank'].forEach(t => {
     document.getElementById('tab-'+t).className = 'tab-btn';
     document.getElementById('panel-'+t).classList.remove('visible');
   });
-  const cls = { cpu:'tab-cpu', mem:'tab-mem', page:'tab-page' };
+  const cls = { cpu:'tab-cpu', mem:'tab-mem', page:'tab-page', bank:'tab-bank' };
   document.getElementById('tab-'+tab).classList.add(cls[tab]);
   document.getElementById('panel-'+tab).classList.add('visible');
   lucide.createIcons();
@@ -937,60 +1087,6 @@ function algoPage_LRU(refStr, numFrames) {
   return {steps, faults, hits};
 }
 
-function algoPage_NRU(refStr, numFrames) {
-  // Each frame slot tracks: { page, R, M }
-  // R is cleared every 8 accesses (simulated clock tick), M set on every access
-  const steps = [];
-  let frameData = new Array(numFrames).fill(null).map(() => ({page: null, R: 0, M: 0}));
-  let faults = 0, hits = 0;
-  const CLEAR_INTERVAL = 8; // clear R every 8 steps
-
-  for (let i = 0; i < refStr.length; i++) {
-    // Simulate clock tick: clear R bits periodically
-    if (i > 0 && i % CLEAR_INTERVAL === 0) {
-      frameData.forEach(fd => { if (fd.page !== null) fd.R = 0; });
-    }
-    const page = refStr[i];
-    const frameIdx = frameData.findIndex(fd => fd.page === page);
-    let evicted = null, evictReason = null;
-
-    if (frameIdx !== -1) {
-      hits++;
-      frameData[frameIdx].R = 1;
-      frameData[frameIdx].M = (Math.random() > 0.5) ? 1 : 0; // simulate write sometimes
-      steps.push({
-        frames: frameData.map(fd => fd.page),
-        frameDetails: frameData.map(fd => ({...fd})),
-        hit: true, incoming: page, evicted: null, evictReason: null
-      });
-    } else {
-      faults++;
-      const emptyIdx = frameData.findIndex(fd => fd.page === null);
-      if (emptyIdx !== -1) {
-        frameData[emptyIdx] = {page, R:1, M:0};
-      } else {
-        // NRU: classify frames and evict lowest class
-        // class 0: R=0,M=0 | class 1: R=0,M=1 | class 2: R=1,M=0 | class 3: R=1,M=1
-        const getClass = fd => fd.R * 2 + fd.M;
-        let bestClass = 4, bestIdx = 0;
-        for (let j = 0; j < frameData.length; j++) {
-          const c = getClass(frameData[j]);
-          if (c < bestClass) { bestClass = c; bestIdx = j; }
-        }
-        evicted = frameData[bestIdx].page;
-        evictReason = `NRU Class ${bestClass} (R=${frameData[bestIdx].R}, M=${frameData[bestIdx].M})`;
-        frameData[bestIdx] = {page, R:1, M:0};
-      }
-      steps.push({
-        frames: frameData.map(fd => fd.page),
-        frameDetails: frameData.map(fd => ({...fd})),
-        hit: false, incoming: page, evicted, evictReason
-      });
-    }
-  }
-  return {steps, faults, hits};
-}
-
 // ════════════════════════════════════════════════
 // PAGE — RUN & RENDER
 // ════════════════════════════════════════════════
@@ -1006,8 +1102,7 @@ function runPage() {
   setTimeout(() => {
     let res;
     if (algo === 'fifo') res = algoPage_FIFO(refStr, numFrames);
-    else if (algo === 'lru') res = algoPage_LRU(refStr, numFrames);
-    else res = algoPage_NRU(refStr, numFrames);
+    else res = algoPage_LRU(refStr, numFrames);
     renderPageGrid(res.steps, refStr, numFrames, algo);
     renderPageMetrics(res, refStr.length);
     setBtnLoading(btn, false, 'emerald', 'Simulate Paging');
@@ -1117,11 +1212,287 @@ function init() {
   loadCpuDemo();
   loadMemDemo();
   loadPageDemo();
+  buildBankTables();   // build Banker input tables
+  loadBankDemo();      // fill with demo data
   // Set initial tab
   document.getElementById('tab-cpu').classList.add('tab-cpu');
 }
 
 window.addEventListener('DOMContentLoaded', init);
+
+// ════════════════════════════════════════════════════════════════
+// BANKER'S ALGORITHM — DEADLOCK AVOIDANCE
+// ════════════════════════════════════════════════════════════════
+
+// ── Build dynamic input tables ──────────────────────────────────
+function buildBankTables() {
+  const np = parseInt(document.getElementById('bank-np').value);
+  const nr = parseInt(document.getElementById('bank-nr').value);
+  const resLabels = Array.from({length: nr}, (_, i) => String.fromCharCode(65 + i)); // A, B, C...
+
+  // Available row
+  const availRow = document.getElementById('bank-avail-row');
+  const oldAvail = Array.from(availRow.querySelectorAll('input')).map(i => i.value);
+  availRow.innerHTML = resLabels.map((r, i) =>
+    `<div class="flex flex-col items-center gap-1">
+       <span class="text-xs text-rose-400 font-bold">${r}</span>
+       <input type="number" class="bank-inp" id="avail-${i}" min="0" value="${oldAvail[i] || 0}">
+     </div>`
+  ).join('');
+
+  // Helper: build a matrix table (allocation or max)
+  function buildMatrixTable(tableId, prefix) {
+    const tbl = document.getElementById(tableId);
+    const oldVals = {};
+    tbl.querySelectorAll('input').forEach(inp => { oldVals[inp.id] = inp.value; });
+    let html = '<thead><tr><th>Process</th>' + resLabels.map(r => `<th>${r}</th>`).join('') + '</tr></thead><tbody>';
+    for (let p = 0; p < np; p++) {
+      html += `<tr><td class="font-bold text-rose-300">P${p}</td>`;
+      for (let r = 0; r < nr; r++) {
+        const id = `${prefix}-${p}-${r}`;
+        const val = oldVals[id] || 0;
+        html += `<td><input type="number" class="bank-inp" id="${id}" min="0" value="${val}"></td>`;
+      }
+      html += '</tr>';
+    }
+    html += '</tbody>';
+    tbl.innerHTML = html;
+  }
+
+  buildMatrixTable('bank-alloc-table', 'alloc');
+  buildMatrixTable('bank-max-table',   'max');
+}
+
+// ── Read matrices from DOM ───────────────────────────────────────
+function readBankState() {
+  const np = parseInt(document.getElementById('bank-np').value);
+  const nr = parseInt(document.getElementById('bank-nr').value);
+  const available = Array.from({length: nr}, (_, i) => parseInt(document.getElementById('avail-'+i).value) || 0);
+  const allocation = [], max = [];
+  for (let p = 0; p < np; p++) {
+    allocation.push(Array.from({length: nr}, (_, r) => parseInt(document.getElementById(`alloc-${p}-${r}`).value) || 0));
+    max.push(Array.from({length: nr}, (_, r) => parseInt(document.getElementById(`max-${p}-${r}`).value) || 0));
+  }
+  return {np, nr, available, allocation, max};
+}
+
+// ── Banker's Safety Algorithm ────────────────────────────────────
+function bankersAlgorithm(np, nr, available, allocation, max) {
+  // Compute Need = Max - Allocation
+  const need = max.map((m, p) => m.map((v, r) => v - allocation[p][r]));
+
+  // Check validity: need[p][r] must be >= 0
+  for (let p = 0; p < np; p++) {
+    for (let r = 0; r < nr; r++) {
+      if (need[p][r] < 0) return {safe: false, sequence: [], trace: [], need, error: `P${p}: Allocation > Max for resource ${String.fromCharCode(65+r)}`};
+    }
+  }
+
+  const work = [...available];
+  const finish = new Array(np).fill(false);
+  const sequence = [];
+  const trace = []; // step-by-step log
+
+  let found = true;
+  while (found) {
+    found = false;
+    for (let p = 0; p < np; p++) {
+      if (finish[p]) continue;
+      // Can need[p] be satisfied by work?
+      const canRun = need[p].every((n, r) => n <= work[r]);
+      if (canRun) {
+        const workBefore = [...work];
+        // Simulate: release resources
+        for (let r = 0; r < nr; r++) work[r] += allocation[p][r];
+        trace.push({
+          pid: p,
+          needVec: [...need[p]],
+          workBefore,
+          workAfter: [...work],
+          allocation: [...allocation[p]],
+        });
+        finish[p] = true;
+        sequence.push(p);
+        found = true;
+      }
+    }
+  }
+
+  const safe = finish.every(f => f);
+  return {safe, sequence, trace, need, error: null};
+}
+
+// ── Load demo preset ─────────────────────────────────────────────
+function loadBankDemo() {
+  // Classic Banker's textbook example (5 processes, 3 resources A,B,C)
+  document.getElementById('bank-np').value = 5;
+  document.getElementById('bank-np-val').textContent = 5;
+  document.getElementById('bank-nr').value = 3;
+  document.getElementById('bank-nr-val').textContent = 3;
+  buildBankTables();
+
+  const allocData = [[0,1,0],[2,0,0],[3,0,2],[2,1,1],[0,0,2]];
+  const maxData   = [[7,5,3],[3,2,2],[9,0,2],[2,2,2],[4,3,3]];
+  const availData = [3,3,2];
+
+  availData.forEach((v, i) => { document.getElementById('avail-'+i).value = v; });
+  allocData.forEach((row, p) => row.forEach((v, r) => { document.getElementById(`alloc-${p}-${r}`).value = v; }));
+  maxData.forEach((row,  p) => row.forEach((v, r) => { document.getElementById(`max-${p}-${r}`).value  = v; }));
+}
+
+// ── Run the full safety check ────────────────────────────────────
+function runBankers() {
+  const btn = document.getElementById('bank-run-btn');
+  setBtnLoading(btn, true, 'rose');
+  setTimeout(() => {
+    const {np, nr, available, allocation, max} = readBankState();
+    const resLabels = Array.from({length: nr}, (_, i) => String.fromCharCode(65 + i));
+    const result = bankersAlgorithm(np, nr, available, allocation, max);
+    renderBankVerdict(result, np, nr, resLabels);
+    renderNeedMatrix(result.need, np, nr, resLabels);
+    renderBankTrace(result, nr, resLabels);
+    renderBankMetrics(result, np, nr, available, allocation);
+    setBtnLoading(btn, false, 'rose', 'Run Safety Check');
+  }, 300);
+}
+
+// ── Render: verdict banner ───────────────────────────────────────
+function renderBankVerdict(result, np, nr, resLabels) {
+  const el = document.getElementById('bank-verdict-out');
+  if (result.error) {
+    el.innerHTML = `<div class="flex items-center gap-3 p-4 rounded-xl bg-red-950 border border-red-800">
+      <i data-lucide="alert-triangle" class="w-6 h-6 text-red-400 flex-shrink-0"></i>
+      <div><p class="font-bold text-red-400">Input Error</p><p class="text-xs text-slate-400 mt-1">${result.error}</p></div>
+    </div>`;
+    lucide.createIcons(); return;
+  }
+  if (result.safe) {
+    const seqStr = result.sequence.map(p => `<span class="seq-step">P${p}</span>`).join('<span class="seq-arrow mx-1">→</span>');
+    el.innerHTML = `
+      <div class="flex items-center gap-3 p-4 rounded-xl mb-4" style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3)">
+        <i data-lucide="shield-check" class="w-8 h-8 text-emerald-400 flex-shrink-0"></i>
+        <div>
+          <p class="font-extrabold text-emerald-400 text-lg">SAFE STATE ✓</p>
+          <p class="text-xs text-slate-400 mt-1">The system is in a safe state. Deadlock cannot occur.</p>
+        </div>
+      </div>
+      <div>
+        <p class="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-3">Safe Execution Sequence</p>
+        <div class="flex flex-wrap items-center gap-2">${seqStr}</div>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div class="flex items-center gap-3 p-4 rounded-xl" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3)">
+        <i data-lucide="shield-x" class="w-8 h-8 text-red-400 flex-shrink-0"></i>
+        <div>
+          <p class="font-extrabold text-red-400 text-lg">UNSAFE STATE ✗</p>
+          <p class="text-xs text-slate-400 mt-1">The system is in an UNSAFE state. Granting this allocation may lead to deadlock.</p>
+          ${result.sequence.length ? `<p class="text-xs text-slate-500 mt-1">Partial sequence found: ${result.sequence.map(p=>'P'+p).join(' → ')}</p>` : ''}
+        </div>
+      </div>`;
+  }
+  lucide.createIcons();
+}
+
+// ── Render: Need matrix ──────────────────────────────────────────
+function renderNeedMatrix(need, np, nr, resLabels) {
+  const el = document.getElementById('bank-need-out');
+  let html = '<table class="bank-table"><thead><tr><th>Process</th>';
+  resLabels.forEach(r => { html += `<th>${r}</th>`; });
+  html += '</tr></thead><tbody>';
+  for (let p = 0; p < np; p++) {
+    html += `<tr><td class="font-bold text-rose-300">P${p}</td>`;
+    need[p].forEach(v => {
+      const cls = v < 0 ? 'need-bad' : 'need-ok';
+      html += `<td class="${cls} font-semibold">${v}</td>`;
+    });
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ── Render: step-by-step trace ───────────────────────────────────
+function renderBankTrace(result, nr, resLabels) {
+  const el = document.getElementById('bank-trace-out');
+  if (!result.trace.length) {
+    el.innerHTML = `<div class="text-xs text-slate-500 p-4">${result.safe ? 'No trace available.' : 'No safe sequence exists — no process can be scheduled.'}</div>`;
+    return;
+  }
+  let html = `<div style="overflow-x:auto"><table class="bank-table">
+    <thead><tr>
+      <th>Step</th><th>Process</th>
+      <th>Need (${resLabels.join(',')})</th>
+      <th>Work Before (${resLabels.join(',')})</th>
+      <th>Allocation (${resLabels.join(',')})</th>
+      <th>Work After (${resLabels.join(',')})</th>
+      <th>Status</th>
+    </tr></thead><tbody>`;
+  result.trace.forEach((step, i) => {
+    html += `<tr class="safe-row">
+      <td class="text-slate-400 font-bold">${i + 1}</td>
+      <td class="font-extrabold text-rose-300">P${step.pid}</td>
+      <td class="text-sky-300 font-semibold">[${step.needVec.join(', ')}]</td>
+      <td class="text-slate-300">[${step.workBefore.join(', ')}]</td>
+      <td class="text-violet-300">[${step.allocation.join(', ')}]</td>
+      <td class="text-emerald-400 font-semibold">[${step.workAfter.join(', ')}]</td>
+      <td><span class="safe-badge">Executed ✓</span></td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+
+// ── Render: metrics ──────────────────────────────────────────────
+function renderBankMetrics(result, np, nr, available, allocation) {
+  const totalAlloc = allocation.reduce((sum, row) => sum + row.reduce((s,v) => s+v, 0), 0);
+  const totalAvail = available.reduce((s,v) => s+v, 0);
+  document.getElementById('bank-metrics-out').innerHTML = `
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      ${metCard('Processes', np, '#fb7185', 'text-rose-400')}
+      ${metCard('Resource Types', nr, '#a78bfa', 'text-violet-400')}
+      ${metCard('Safe Sequence', result.safe ? result.sequence.map(p=>'P'+p).join('→') : 'None', result.safe ? '#34d399' : '#f87171', result.safe ? 'text-emerald-400' : 'text-red-400')}
+      ${metCard('System State', result.safe ? 'SAFE ✓' : 'UNSAFE ✗', result.safe ? '#34d399' : '#f87171', result.safe ? 'text-emerald-400 text-base' : 'text-red-400 text-base')}
+    </div>`;
+}
+
+// ── Resource Request Check ───────────────────────────────────────
+function checkRequest() {
+  const pidIdx = parseInt(document.getElementById('req-pid').value);
+  const vecStr = document.getElementById('req-vec').value.trim();
+  const el = document.getElementById('req-result');
+  if (isNaN(pidIdx)) { el.innerHTML = `<span class="text-red-400">Invalid process index.</span>`; return; }
+  const {np, nr, available, allocation, max} = readBankState();
+  if (pidIdx < 0 || pidIdx >= np) { el.innerHTML = `<span class="text-red-400">Process P${pidIdx} doesn't exist (0–${np-1}).</span>`; return; }
+  const reqVec = vecStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+  if (reqVec.length !== nr) { el.innerHTML = `<span class="text-red-400">Request vector must have ${nr} values.</span>`; return; }
+  const need = max.map((m, p) => m.map((v, r) => v - allocation[p][r]));
+
+  // Step 1: request <= need
+  for (let r = 0; r < nr; r++) {
+    if (reqVec[r] > need[pidIdx][r]) {
+      el.innerHTML = `<div class="unsafe-badge inline-block mb-1">DENIED</div><p class="text-red-400 mt-1">Request[${r}]=${reqVec[r]} exceeds Need[${r}]=${need[pidIdx][r]} for P${pidIdx}. Process has exceeded its maximum claim.</p>`;
+      return;
+    }
+  }
+  // Step 2: request <= available
+  for (let r = 0; r < nr; r++) {
+    if (reqVec[r] > available[r]) {
+      el.innerHTML = `<div class="unsafe-badge inline-block mb-1">WAIT</div><p class="text-amber-400 mt-1">Request[${r}]=${reqVec[r]} > Available[${r}]=${available[r]}. P${pidIdx} must wait — resources not available.</p>`;
+      return;
+    }
+  }
+  // Step 3: Pretend to allocate, then run safety check
+  const newAvail    = available.map((v, r) => v - reqVec[r]);
+  const newAlloc    = allocation.map((row, p) => p === pidIdx ? row.map((v, r) => v + reqVec[r]) : [...row]);
+  const newMax      = max.map(row => [...row]);
+  const tryResult   = bankersAlgorithm(np, nr, newAvail, newAlloc, newMax);
+  if (tryResult.safe) {
+    el.innerHTML = `<div class="safe-badge inline-block mb-1">GRANTED ✓</div><p class="text-emerald-400 mt-1">Granting P${pidIdx}'s request leaves the system in a <strong>SAFE</strong> state.<br>Safe sequence: ${tryResult.sequence.map(p=>'P'+p).join(' → ')}</p>`;
+  } else {
+    el.innerHTML = `<div class="unsafe-badge inline-block mb-1">DENIED — UNSAFE</div><p class="text-red-400 mt-1">Granting this request would put the system in an <strong>UNSAFE</strong> state. Request denied to prevent potential deadlock.</p>`;
+  }
+}
 </script>
 </body>
 </html>
